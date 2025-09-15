@@ -1,0 +1,90 @@
+.
+├── ./.gitignore
+├── ./.vscode
+│   └── ./.vscode/settings.json
+├── ./build
+│   ├── ./build/config
+│   │   ├── ./build/config/Config.o
+│   │   ├── ./build/config/Lexer.o
+│   │   └── ./build/config/Parser.o
+│   ├── ./build/core
+│   │   ├── ./build/core/App.o
+│   │   └── ./build/core/Log.o
+│   ├── ./build/fs
+│   │   └── ./build/fs/Path.o
+│   ├── ./build/http
+│   │   ├── ./build/http/Chunked.o
+│   │   ├── ./build/http/Parser.o
+│   │   ├── ./build/http/Request.o
+│   │   ├── ./build/http/Router.o
+│   │   └── ./build/http/StaticHandler.o
+│   ├── ./build/main.o
+│   ├── ./build/net
+│   │   ├── ./build/net/Connection.o
+│   │   ├── ./build/net/EventLoop.o
+│   │   ├── ./build/net/Listener.o
+│   │   └── ./build/net/Poller.o
+│   └── ./build/utils
+│       └── ./build/utils/Mime.o
+├── ./examples
+│   ├── ./examples/basic.conf
+│   ├── ./examples/full.conf
+│   ├── ./examples/index.html
+│   └── ./examples/site
+│       └── ./examples/site/foo
+│           └── ./examples/site/foo/bar
+├── ./include
+│   └── ./include/webserv
+│       ├── ./include/webserv/App.hpp
+│       ├── ./include/webserv/config
+│       │   ├── ./include/webserv/config/Config.hpp
+│       │   ├── ./include/webserv/config/Lexer.hpp
+│       │   └── ./include/webserv/config/Parser.hpp
+│       ├── ./include/webserv/fs
+│       │   └── ./include/webserv/fs/Path.hpp
+│       ├── ./include/webserv/http
+│       │   ├── ./include/webserv/http/Chunked.hpp
+│       │   ├── ./include/webserv/http/Parser.hpp
+│       │   ├── ./include/webserv/http/Request.hpp
+│       │   ├── ./include/webserv/http/Router.hpp
+│       │   └── ./include/webserv/http/StaticHandler.hpp
+│       ├── ./include/webserv/Log.hpp
+│       ├── ./include/webserv/net
+│       │   ├── ./include/webserv/net/Connection.hpp
+│       │   ├── ./include/webserv/net/EventLoop.hpp
+│       │   ├── ./include/webserv/net/Listener.hpp
+│       │   └── ./include/webserv/net/Poller.hpp
+│       ├── ./include/webserv/utils
+│       │   └── ./include/webserv/utils/Mime.hpp
+│       └── ./include/webserv/Version.hpp
+├── ./Makefile
+├── ./src
+│   ├── ./src/config
+│   │   ├── ./src/config/Config.cpp
+│   │   ├── ./src/config/Lexer.cpp
+│   │   └── ./src/config/Parser.cpp
+│   ├── ./src/core
+│   │   ├── ./src/core/App.cpp
+│   │   └── ./src/core/Log.cpp
+│   ├── ./src/fs
+│   │   └── ./src/fs/Path.cpp
+│   ├── ./src/http
+│   │   ├── ./src/http/Chunked.cpp
+│   │   ├── ./src/http/Parser.cpp
+│   │   ├── ./src/http/Request.cpp
+│   │   ├── ./src/http/Router.cpp
+│   │   └── ./src/http/StaticHandler.cpp
+│   ├── ./src/main.cpp
+│   ├── ./src/net
+│   │   ├── ./src/net/Connection.cpp
+│   │   ├── ./src/net/EventLoop.cpp
+│   │   ├── ./src/net/Listener.cpp
+│   │   └── ./src/net/Poller.cpp
+│   └── ./src/utils
+│       └── ./src/utils/Mime.cpp
+├── ./tests
+├── ./tree.txt
+├── ./webserv
+└── ./WEBserver.pdf
+
+27 directories, 61 files

@@ -1,0 +1,8 @@
+import sys
+data = sys.stdin.read()
+print("Status: 200 OK")
+print("Content-Type: text/plain; charset=utf-8")
+print()
+print("Hello from CGI!")
+if data:
+    print("Body sent:", data)
