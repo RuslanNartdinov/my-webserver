@@ -1,7 +1,7 @@
 .
-├── ./.gitignore
-├── ./.vscode
-│   └── ./.vscode/settings.json
+├── ./Makefile
+├── ./WEBserver.pdf
+├── ./bigfile.bin
 ├── ./build
 │   ├── ./build/config
 │   │   ├── ./build/config/Config.o
@@ -13,6 +13,7 @@
 │   ├── ./build/fs
 │   │   └── ./build/fs/Path.o
 │   ├── ./build/http
+│   │   ├── ./build/http/Cgi.o
 │   │   ├── ./build/http/Chunked.o
 │   │   ├── ./build/http/Parser.o
 │   │   ├── ./build/http/Request.o
@@ -31,11 +32,28 @@
 │   ├── ./examples/full.conf
 │   ├── ./examples/index.html
 │   └── ./examples/site
-│       └── ./examples/site/foo
-│           └── ./examples/site/foo/bar
+│       ├── ./examples/site/cgi
+│       │   ├── ./examples/site/cgi/chunked.py
+│       │   └── ./examples/site/cgi/hello.py
+│       ├── ./examples/site/errors
+│       │   └── ./examples/site/errors/404.html
+│       ├── ./examples/site/foo
+│       │   ├── ./examples/site/foo/bar
+│       │   └── ./examples/site/foo/index.html
+│       ├── ./examples/site/index.html
+│       └── ./examples/site/uploads
+│           ├── ./examples/site/uploads/up_1758175208_46577_16807
+│           ├── ./examples/site/uploads/upload_11735_1757692305_0
+│           ├── ./examples/site/uploads/upload_11735_1757692370_1
+│           ├── ./examples/site/uploads/upload_1758173465_16807
+│           ├── ./examples/site/uploads/upload_32827_1758172690_0
+│           ├── ./examples/site/uploads/upload_35923_1758173173_0
+│           └── ./examples/site/uploads/upload_41404_1758174144_0
 ├── ./include
 │   └── ./include/webserv
 │       ├── ./include/webserv/App.hpp
+│       ├── ./include/webserv/Log.hpp
+│       ├── ./include/webserv/Version.hpp
 │       ├── ./include/webserv/config
 │       │   ├── ./include/webserv/config/Config.hpp
 │       │   ├── ./include/webserv/config/Lexer.hpp
@@ -43,21 +61,19 @@
 │       ├── ./include/webserv/fs
 │       │   └── ./include/webserv/fs/Path.hpp
 │       ├── ./include/webserv/http
+│       │   ├── ./include/webserv/http/Cgi.hpp
 │       │   ├── ./include/webserv/http/Chunked.hpp
 │       │   ├── ./include/webserv/http/Parser.hpp
 │       │   ├── ./include/webserv/http/Request.hpp
 │       │   ├── ./include/webserv/http/Router.hpp
 │       │   └── ./include/webserv/http/StaticHandler.hpp
-│       ├── ./include/webserv/Log.hpp
 │       ├── ./include/webserv/net
 │       │   ├── ./include/webserv/net/Connection.hpp
 │       │   ├── ./include/webserv/net/EventLoop.hpp
 │       │   ├── ./include/webserv/net/Listener.hpp
 │       │   └── ./include/webserv/net/Poller.hpp
-│       ├── ./include/webserv/utils
-│       │   └── ./include/webserv/utils/Mime.hpp
-│       └── ./include/webserv/Version.hpp
-├── ./Makefile
+│       └── ./include/webserv/utils
+│           └── ./include/webserv/utils/Mime.hpp
 ├── ./src
 │   ├── ./src/config
 │   │   ├── ./src/config/Config.cpp
@@ -69,6 +85,7 @@
 │   ├── ./src/fs
 │   │   └── ./src/fs/Path.cpp
 │   ├── ./src/http
+│   │   ├── ./src/http/Cgi.cpp
 │   │   ├── ./src/http/Chunked.cpp
 │   │   ├── ./src/http/Parser.cpp
 │   │   ├── ./src/http/Request.cpp
@@ -84,7 +101,6 @@
 │       └── ./src/utils/Mime.cpp
 ├── ./tests
 ├── ./tree.txt
-├── ./webserv
-└── ./WEBserver.pdf
+└── ./webserv
 
-27 directories, 61 files
+29 directories, 75 files

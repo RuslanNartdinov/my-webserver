@@ -35,3 +35,7 @@ fclean: clean
 	@echo "Removed binary"
 
 re: fclean all
+
+debug: CXXFLAGS+= -fsanitize=address -fno-omit-frame-pointer -g
+debug: LDFLAGS+= -fsanitize=address
+debug: clean all

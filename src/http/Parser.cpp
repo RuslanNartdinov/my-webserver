@@ -67,7 +67,7 @@ namespace ws
 			return false;
 
 		// допустимые методы
-		if (_req.method != "GET" && _req.method != "POST" && _req.method != "DELETE" && _req.method != "HEAD")
+		if (_req.method != "GET" && _req.method != "POST" && _req.method != "DELETE" && _req.method != "HEAD" && _req.method != "PUT")
 			return false;
 
 		return true;

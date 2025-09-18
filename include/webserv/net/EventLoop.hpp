@@ -23,7 +23,7 @@ public:
 
 private:
     Poller _poller;
-    std::vector<Listener*> _listeners;
+    std::vector<Listener> _listeners;
     std::map<int, class Connection*> _conns;
 
     // ← ДОБАВЛЕНО: сопоставление fd слушателя -> (host,port)
