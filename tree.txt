@@ -1,4 +1,6 @@
 .
+├── ./.vscode
+│   └── ./.vscode/settings.json
 ├── ./Makefile
 ├── ./WEBserver.pdf
 ├── ./bigfile.bin
@@ -42,7 +44,15 @@
 │       │   └── ./examples/site/foo/index.html
 │       ├── ./examples/site/index.html
 │       └── ./examples/site/uploads
-│           ├── ./examples/site/uploads/up_1758175208_46577_16807
+│           ├── ./examples/site/uploads/up_1758179521_65164_16807
+│           ├── ./examples/site/uploads/up_1758182565_79146_16807
+│           ├── ./examples/site/uploads/up_1758183477_82656_16807
+│           ├── ./examples/site/uploads/up_1758183529_83665_16807
+│           ├── ./examples/site/uploads/up_1758184411_88213_16807
+│           ├── ./examples/site/uploads/up_1758186049_94613_16807
+│           ├── ./examples/site/uploads/up_1758219140_62341_16807
+│           ├── ./examples/site/uploads/up_1758219806_65311_16807
+│           ├── ./examples/site/uploads/up_1758220520_68026_16807
 │           ├── ./examples/site/uploads/upload_11735_1757692305_0
 │           ├── ./examples/site/uploads/upload_11735_1757692370_1
 │           ├── ./examples/site/uploads/upload_1758173465_16807
@@ -99,8 +109,9 @@
 │   │   └── ./src/net/Poller.cpp
 │   └── ./src/utils
 │       └── ./src/utils/Mime.cpp
+├── ./test_webserv.sh
 ├── ./tests
 ├── ./tree.txt
 └── ./webserv
 
-29 directories, 75 files
+30 directories, 85 files

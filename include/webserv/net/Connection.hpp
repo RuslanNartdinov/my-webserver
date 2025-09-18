@@ -23,7 +23,6 @@ namespace ws
 		void onReadable();
 		void onWritable();
 		bool isClosed() const { return _state == CLOSED; }
-		bool handlePostUpload(const RouteMatch& m);
 		void setRouter(const Router *r) { _router = r; }
 		void setLocalBind(const std::string &host, int port)
 		{
@@ -32,6 +31,7 @@ namespace ws
 		}
 
 	private:
+		bool handlePostUpload(const RouteMatch &m);
 		void makeChunkedResponse(int code, const std::string &reason,
 								 const std::string &ctype,
 								 const std::string &body,
