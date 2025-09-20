@@ -1,35 +1,36 @@
 #!/usr/bin/env bash
 # subject_tester.sh — строгий к сабджекту тестер
 # Usage:
-#   ./subject_tester.sh [BASE_URL] [--port2 BASE_URL2] [--vhost HOST PATH EXPECT]...
+#   ./subject_tester.sh [BASE_URL] [--port URL]... [--vhost HOST PATH EXPECT]...
 # Примеры:
 #   ./subject_tester.sh
-#   ./subject_tester.sh http://127.0.0.1:8080 --vhost site1.local / "Site1" --vhost site2.local / "Site2"
-#   ./subject_tester.sh http://127.0.0.1:8080 --port2 http://127.0.0.1:8081
+#   ./subject_tester.sh http://127.0.0.1:8080 --port http://127.0.0.1:8081
+#   ./subject_tester.sh http://127.0.0.1:8080 \
+#       --vhost example.local / "Example" \
+#       --vhost admin.local   / "foo" \
+#       --port  http://127.0.0.1:8081 \
+#       --vhost dragon.local / "Index"
 
 set -euo pipefail
 
 BASE="${1:-http://127.0.0.1:8080}"
 shift || true
 
-PORT2=""
-# массивы для vhost-проверок
-VHOSTS=()    # host
-VPATHS=()    # path
-VEXPECTS=()  # подстрока в теле
+PORTS=()      # дополнительные базовые URL: --port http://127.0.0.1:8081 (можно много раз)
+VHOSTS=()     # host
+VPATHS=()     # path
+VEXPECTS=()   # ожидаемая подстрока в теле
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --port2)
-      PORT2="${2:-}"; shift 2;;
+    --port)
+      PORTS+=("${2:-}"); shift 2;;
     --vhost)
-      # три аргумента: HOST PATH EXPECT
       VHOSTS+=("${2:-}")
       VPATHS+=("${3:-/}")
       VEXPECTS+=("${4:-}")
       shift 4;;
     *)
-      # игнор/совместимость
       shift;;
   esac
 done
@@ -150,7 +151,6 @@ if [[ "$code" == "201" ]]; then
       res="$(curl_do DELETE "$BASE$loc")"; code="${res%%:*}"
       [[ "$code" == "204" ]] && ok "DELETE $loc -> 204" || bad "DELETE $loc ожидал 204, получил $code"
     else
-      # fallback на /uploads/
       loc2="$(echo "$loc" | sed 's#^/upload/#/uploads/#')"
       res="$(curl_do GET "$BASE$loc2")"; code="${res%%:*}"; rest="${res#*:}"; body="${rest##*:}"
       if [[ "$code" == "200" && "$(cat "$body")" == "$payload" ]]; then
@@ -175,12 +175,15 @@ if [[ "$code" == "413" ]]; then ok "413 Payload Too Large"; else note "Лими�
 res="$(curl_do PUT "$BASE/upload")"; code="${res%%:*}"
 if [[ "$code" == "405" || "$code" == "501" ]]; then ok "PUT /upload не разрешён (код $code)"; else note "PUT /upload -> $code"; fi
 
-# ------------------ 12) Второй порт (опционально) -------
-if [[ -n "$PORT2" ]]; then
-  res="$(curl_do GET "$PORT2/")"; code="${res%%:*}"
-  [[ "$code" == "200" ]] && ok "Слушает и на втором порту ($PORT2)" || bad "Второй порт не отвечает 200 ($code)"
+# ------------------ 12) Несколько listener'ов (мультипорты)
+if [[ "${#PORTS[@]}" -gt 0 ]]; then
+  say ""; say "${BOLD}Проверка дополнительных портов${NC}"
+  for p in "${PORTS[@]}"; do
+    res="$(curl_do GET "$p/")"; code="${res%%:*}"
+    if [[ "$code" == "200" ]]; then ok "Слушает на $p (200)"; else bad "Порт $p не вернул 200 (код $code)"; fi
+  done
 else
-  note "Тест второго порта пропущен (не передан --port2)"
+  note "Дополнительные порты не переданы (--port URL)"
 fi
 
 # ------------------ 13) server_name / Host-based routing -
@@ -192,7 +195,7 @@ if [[ "${#VHOSTS[@]}" -gt 0 ]]; then
     res="$(curl_do GET "$url" -H "Host: $host")"; code="${res%%:*}"; rest="${res#*:}"; body="${rest##*:}"
     if [[ "$code" == "200" ]]; then
       if [[ -z "$expect" ]] || grep -q "$expect" "$body"; then
-        ok "Host: $host $path -> 200 (совпало с ожидаемым контентом)"
+        ok "Host: $host $path -> 200 (контент ок)"
       else
         bad "Host: $host $path -> 200, но тело не содержит ожидаемое: '$expect'"
       fi
@@ -204,7 +207,6 @@ else
   note "Проверки server_name пропущены (не переданы --vhost кейсы)"
 fi
 
-# ---------------------------------------------------------------------------
 echo
 printf "%sИТОГО:%s %sPASS%s=%d  %sFAIL%s=%d\n" "$BOLD" "$NC" "$GREEN" "$NC" "$pass" "$RED" "$NC" "$fail"
 echo

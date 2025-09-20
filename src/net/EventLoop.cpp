@@ -7,204 +7,174 @@
 
 #include <sys/socket.h>
 #include <unistd.h>
-#include <errno.h>
 #include <poll.h>
-#include <utility> // std::pair, std::make_pair
+#include <errno.h>
+
 #include <map>
 #include <vector>
+#include <utility>
+#include <sstream>
 
-namespace ws
-{
+namespace ws {
 
-	EventLoop::EventLoop()
-		: _router(0), _cfgRef(0)
-	{
-	}
+EventLoop::EventLoop()
+    : _router(0), _cfgRef(0) {}
 
-	EventLoop::~EventLoop()
-	{
-		// НИЧЕГО не удаляем вручную:
-		// - _listeners хранит Listener по значению
-		// - _conns мы чистим в gcClosed()
-		if (_router)
-		{
-			delete _router;
-			_router = 0;
-		}
-	}
+EventLoop::~EventLoop() {
+    // закрыть и удалить слушатели
+    for (size_t i = 0; i < _listeners.size(); ++i) {
+        delete _listeners[i];
+    }
+    _listeners.clear();
+    _listenerBind.clear();
 
-	bool EventLoop::initFromConfig(const Config &cfg)
-	{
-		_cfgRef = &cfg;
+    // удалить активные соединения (на всякий случай)
+    for (std::map<int, Connection*>::iterator it = _conns.begin(); it != _conns.end(); ++it) {
+        delete it->second;
+    }
+    _conns.clear();
 
-		// Роутер пересобираем заново
-		if (_router)
-		{
-			delete _router;
-			_router = 0;
-		}
-		_router = new Router(_cfgRef);
+    if (_router) { delete _router; _router = 0; }
+}
 
-		// очистим предыдущие слушатели и их бинды
-		_listeners.clear();
-		_listenerBind.clear();
+bool EventLoop::initFromConfig(const Config& cfg) {
+    _cfgRef = &cfg;
 
-		// Список уникальных (host, port) биндов
-		std::vector<std::pair<std::string, int> > binds;
-		for (size_t i = 0; i < cfg.servers.size(); ++i)
-		{
-			const ServerConfig &s = cfg.servers[i];
-			bool exists = false;
-			for (size_t j = 0; j < binds.size(); ++j)
-			{
-				if (binds[j].first == s.host && binds[j].second == s.port)
-				{
-					exists = true;
-					break;
-				}
-			}
-			if (!exists)
-				binds.push_back(std::make_pair(s.host, s.port));
-		}
+    // переcобрать роутер
+    if (_router) { delete _router; _router = 0; }
+    _router = new Router(_cfgRef);
 
-		// Создаём Listener по значению и открываем
-		for (size_t i = 0; i < binds.size(); ++i)
-		{
-			const std::string &host = binds[i].first;
-			int port = binds[i].second;
+    // подчистить прежние слушатели/бинды
+    for (size_t i = 0; i < _listeners.size(); ++i) delete _listeners[i];
+    _listeners.clear();
+    _listenerBind.clear();
 
-			// Кладём объект по значению (без new/delete)
-			_listeners.push_back(Listener());
-			Listener &L = _listeners.back();
+    // собрать уникальные (host,port)
+    std::vector< std::pair<std::string,int> > binds;
+    for (size_t i = 0; i < cfg.servers.size(); ++i) {
+        const ServerConfig& s = cfg.servers[i];
+        bool exists = false;
+        for (size_t j = 0; j < binds.size(); ++j) {
+            if (binds[j].first == s.host && binds[j].second == s.port) { exists = true; break; }
+        }
+        if (!exists) binds.push_back(std::make_pair(s.host, s.port));
+    }
 
-			if (!L.open(host, port))
-			{
-				// откатим добавление и сообщим об ошибке
-				_listeners.pop_back();
-				return false;
-			}
+    // создать слушатель на каждый уникальный бинд
+    for (size_t i = 0; i < binds.size(); ++i) {
+        const std::string& host = binds[i].first;
+        int port = binds[i].second;
 
-			// Доп. карта: fd -> (host,port), пригодится для Connection
-			_listenerBind[L.fd()] = std::make_pair(host, port);
-		}
+        Listener* L = new Listener();
+        if (!L->open(host, port)) {
+            std::ostringstream oss;
+            oss << "Listener open failed for " << host << ":" << port;
+            ws::Log::warn(oss.str());
+            delete L;
+            return false; // “всё или ничего”
+        }
+        _listeners.push_back(L);
+        _listenerBind[L->fd()] = std::make_pair(host, port);
+    }
 
-		return true;
-	}
+    return true;
+}
 
-	void EventLoop::rebuildPollSet()
-	{
-		_poller.clear();
+void EventLoop::rebuildPollSet() {
+    _poller.clear();
 
-		// слушатели
-		for (size_t i = 0; i < _listeners.size(); ++i)
-			_poller.add(_listeners[i].fd(), POLLIN);
+    // слушатели
+    for (size_t i = 0; i < _listeners.size(); ++i) {
+        _poller.add(_listeners[i]->fd(), POLLIN);
+    }
 
-		// активные соединения
-		for (std::map<int, Connection *>::iterator it = _conns.begin(); it != _conns.end(); ++it)
-			_poller.add(it->first, it->second->wantEvents());
-	}
+    // активные соединения
+    for (std::map<int, Connection*>::iterator it = _conns.begin(); it != _conns.end(); ++it) {
+        _poller.add(it->first, it->second->wantEvents());
+    }
+}
 
-	void EventLoop::acceptReady(int lfd)
-	{
-		for (;;)
-		{
-			int cfd = ::accept(lfd, 0, 0);
-			if (cfd < 0)
-			{
-				// не трогаем errno — выходим, дождёмся следующего POLLIN на слушателе
-				return;
-			}
-			setNonBlocking(cfd);
-			Connection *c = new Connection(cfd);
-			std::map<int, std::pair<std::string, int> >::iterator itB = _listenerBind.find(lfd);
-			if (itB != _listenerBind.end())
-				c->setLocalBind(itB->second.first, itB->second.second);
-			c->setRouter(_router);
-			_conns[cfd] = c;
-		}
-	}
+void EventLoop::acceptReady(int lfd) {
+    for (;;) {
+        int cfd = ::accept(lfd, 0, 0);
+        if (cfd < 0) {
+            // не трогаем errno (по твоему требованию) — просто ждём следующего POLLIN
+            return;
+        }
+        setNonBlocking(cfd);
 
-	void EventLoop::gcClosed()
-	{
-		std::vector<int> dead;
-		for (std::map<int, Connection *>::iterator it = _conns.begin(); it != _conns.end(); ++it)
-			if (it->second->isClosed())
-				dead.push_back(it->first);
+        Connection* c = new Connection(cfd);
 
-		for (size_t i = 0; i < dead.size(); ++i)
-		{
-			int fd = dead[i];
-			std::map<int, Connection *>::iterator it = _conns.find(fd);
-			if (it != _conns.end())
-			{
-				delete it->second;
-				_conns.erase(it);
-			}
-		}
-	}
+        // передадим, на каком (host,port) нас приняли
+        std::map<int, std::pair<std::string,int> >::iterator itB = _listenerBind.find(lfd);
+        if (itB != _listenerBind.end()) {
+            c->setLocalBind(itB->second.first, itB->second.second);
+        }
 
-	int EventLoop::run()
-	{
-		ws::Log::info("Event loop started");
+        c->setRouter(_router);
+        _conns[cfd] = c;
+    }
+}
 
-		std::vector<PollEvent> evs;
+void EventLoop::gcClosed() {
+    std::vector<int> dead;
+    for (std::map<int, Connection*>::iterator it = _conns.begin(); it != _conns.end(); ++it) {
+        if (it->second->isClosed()) dead.push_back(it->first);
+    }
+    for (size_t i = 0; i < dead.size(); ++i) {
+        int fd = dead[i];
+        std::map<int, Connection*>::iterator it = _conns.find(fd);
+        if (it != _conns.end()) {
+            delete it->second;
+            _conns.erase(it);
+        }
+    }
+}
 
-		while (true)
-		{
-			rebuildPollSet();
+int EventLoop::run() {
+    ws::Log::info("Event loop started");
 
-			int n = _poller.wait(evs, 1000);
-			if (n < 0)
-				continue;
+    std::vector<PollEvent> evs;
 
-			for (size_t i = 0; i < evs.size(); ++i)
-			{
-				int fd = evs[i].fd;
-				short rev = evs[i].revents;
+    while (true) {
+        rebuildPollSet();
 
-				// это Listener?
-				bool isL = false;
-				for (size_t k = 0; k < _listeners.size(); ++k)
-				{
-					if (_listeners[k].fd() == fd)
-					{
-						isL = true;
-						break;
-					}
-				}
+        int n = _poller.wait(evs, 1000);
+        if (n < 0) continue;
 
-				if (isL)
-				{
-					if (rev & POLLIN)
-						acceptReady(fd);
-					continue;
-				}
+        for (size_t i = 0; i < evs.size(); ++i) {
+            int fd   = evs[i].fd;
+            short ev = evs[i].revents;
 
-				// иначе это соединение
-				std::map<int, Connection *>::iterator it = _conns.find(fd);
-				if (it == _conns.end())
-					continue;
+            // это слушатель?
+            bool isL = false;
+            for (size_t k = 0; k < _listeners.size(); ++k) {
+                if (_listeners[k]->fd() == fd) { isL = true; break; }
+            }
 
-				if (rev & (POLLERR | POLLHUP | POLLNVAL))
-				{
-					// Попробуем дописать, если есть что отправлять
-					if (it->second->wantEvents() & POLLOUT)
-						it->second->onWritable();
-					else if (it->second->wantEvents() & POLLIN)
-						it->second->onReadable();
-					continue;
-				}
+            if (isL) {
+                if (ev & POLLIN) acceptReady(fd);
+                continue;
+            }
 
-				if (rev & POLLIN)
-					it->second->onReadable();
-				if (rev & POLLOUT)
-					it->second->onWritable();
-			}
+            // иначе — соединение
+            std::map<int, Connection*>::iterator it = _conns.find(fd);
+            if (it == _conns.end()) continue;
 
-			gcClosed();
-		}
+            if (ev & (POLLERR | POLLHUP | POLLNVAL)) {
+                if (it->second->wantEvents() & POLLOUT) it->second->onWritable();
+                else if (it->second->wantEvents() & POLLIN) it->second->onReadable();
+                continue;
+            }
 
-		return 0;
-	}
+            if (ev & POLLIN)  it->second->onReadable();
+            if (ev & POLLOUT) it->second->onWritable();
+        }
+
+        gcClosed();
+    }
+
+    return 0;
+}
 
 } // namespace ws

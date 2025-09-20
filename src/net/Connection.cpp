@@ -147,40 +147,45 @@ namespace ws
     }
 
     bool Connection::handlePostUpload(const RouteMatch& m)
-    {
-        if (_req.method != "POST" || !m.location || !m.location->upload_enable || m.location->upload_store.empty())
-            return false;
+{
+    if (_req.method != "POST" || !m.location || !m.location->upload_enable || m.location->upload_store.empty())
+        return false;
 
-        size_t limit = 10 * 1024 * 1024;
-        if (m.location->client_max_body_size)      limit = m.location->client_max_body_size;
-        else if (m.server && m.server->client_max_body_size) limit = m.server->client_max_body_size;
-        if (_req.body.size() > limit) { makeErrorWithPages(413, m.server); return true; }
+    size_t limit = 10 * 1024 * 1024;
+    if (m.location->client_max_body_size)                   limit = m.location->client_max_body_size;
+    else if (m.server && m.server->client_max_body_size)    limit = m.server->client_max_body_size;
 
-        std::string serverRoot = (m.server && !m.server->root.empty()) ? m.server->root : std::string(".");
-        std::string updir = m.location->upload_store;
-        if (!updir.empty() && updir[0] != '/')
-            updir = (serverRoot.back() == '/' ? serverRoot + updir : serverRoot + "/" + updir);
-
-        if (!ws::ensureDirRecursive(updir))
-        {
-            makeResponse(500, "Internal Server Error", "text/plain; charset=utf-8", "500 Internal Server Error\n");
-            return true;
-        }
-
-        const std::string fileName = genUploadName();
-        const std::string outPath  = updir + "/" + fileName;
-        if (!ws::writeBinary(outPath, _req.body))
-        {
-            makeResponse(500, "Internal Server Error", "text/plain; charset=utf-8", "500 Internal Server Error\n");
-            return true;
-        }
-
-        const std::string locationHdr = "/uploads/" + fileName;
-        makeResponseHeaders(201, "Created", "text/plain; charset=utf-8", 12, locationHdr, "");
-        if (_req.method != "HEAD") _out += "201 Created\n";
-        _state = WRITE;
+    if (_req.body.size() > limit) {
+        makeErrorWithPages(413, m.server);
         return true;
     }
+
+    std::string serverRoot = (m.server && !m.server->root.empty()) ? m.server->root : std::string(".");
+    std::string updir = m.location->upload_store;
+    if (!updir.empty() && updir[0] != '/')
+        updir = (serverRoot.back() == '/' ? serverRoot + updir : serverRoot + "/" + updir);
+
+    if (!ws::ensureDirRecursive(updir)) {
+        makeResponse(500, "Internal Server Error", "text/plain; charset=utf-8", "500 Internal Server Error\n");
+        return true;
+    }
+
+    const std::string fileName = genUploadName();           // если нужно, замени на ws::genUploadName()
+    const std::string outPath  = updir + "/" + fileName;
+
+    if (!ws::writeBinary(outPath, _req.body)) {
+        makeResponse(500, "Internal Server Error", "text/plain; charset=utf-8", "500 Internal Server Error\n");
+        return true;
+    }
+
+    const std::string locationHdr = "/uploads/" + fileName;
+
+    makeResponseHeaders(201, "Created", "text/plain; charset=utf-8", 12, locationHdr, "");
+    if (_req.method != "HEAD")
+        _out += "201 Created\n";
+    _state = WRITE;
+    return true;
+}
 
     void Connection::onReadable()
     {
@@ -316,7 +321,6 @@ namespace ws
                 closeNow();
                 return;
             }
-            if (errno == EAGAIN || errno == EWOULDBLOCK) return;
             ws::Log::warn("recv() error, closing");
             closeNow();
             return;
@@ -330,7 +334,7 @@ namespace ws
         {
             ssize_t n = ::send(_fd, _out.data(), _out.size(), 0);
             if (n > 0) { _out.erase(0, (size_t)n); continue; }
-            if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return;
+            if (n < 0) return;
             ws::Log::warn("send() error, closing");
             closeNow();
             return;
